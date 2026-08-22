@@ -1,0 +1,7 @@
+{
+  "tenant_id": "tenant-demo",
+  "allowed_capabilities": ["health.check", "text.infer"],
+  "max_task_budget_usd": 0.05,
+  "retention_days": 30,
+  "data_classification": "internal"
+}
