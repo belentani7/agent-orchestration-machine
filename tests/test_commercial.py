@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -64,6 +64,19 @@ class CommercialOperationsTests(unittest.TestCase):
             second_message = self.operations.prepare_message(self.contact.id, second.id)
             delivered = self.operations.deliver_ready(second_message.id, FileDeliveryGateway(Path(directory)))
         self.assertEqual(MessageStatus.SUPPRESSED, delivered.status)
+
+    def test_daily_limit_counts_sends_of_messages_prepared_on_previous_days(self) -> None:
+        proposal = self._approved_proposal()
+        message = self.operations.prepare_message(self.contact.id, proposal.id)
+        message.created_at = datetime.now(UTC) - timedelta(days=1)
+        with TemporaryDirectory() as directory:
+            gateway = FileDeliveryGateway(Path(directory))
+            delivered_first = self.operations.deliver_ready(message.id, gateway)
+            self.assertEqual(MessageStatus.SENT, delivered_first.status)
+            second = self._approved_proposal()
+            second_message = self.operations.prepare_message(self.contact.id, second.id)
+            delivered_second = self.operations.deliver_ready(second_message.id, gateway)
+        self.assertEqual(MessageStatus.SUPPRESSED, delivered_second.status)
 
 
 if __name__ == "__main__":

@@ -87,6 +87,7 @@ class OutreachMessage:
     provider_message_id: str | None = None
     error: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    sent_at: datetime | None = None
 
 
 class DeliveryGateway(Protocol):
@@ -231,6 +232,7 @@ class CommercialOperations:
             self._assert_deliverable(message, contact, proposal)
             message.provider_message_id = gateway.deliver(message)
             message.status = MessageStatus.SENT
+            message.sent_at = datetime.now(UTC)
             self._repository.record("outreach.sent", message.tenant_id, message.id, message.provider_message_id)
         except Exception as error:
             message.status = MessageStatus.SUPPRESSED if isinstance(error, OutreachBlocked) else MessageStatus.FAILED
@@ -248,7 +250,7 @@ class CommercialOperations:
         sent_today = sum(
             1 for item in self._repository.messages.values()
             if item.tenant_id == message.tenant_id and item.channel == message.channel and item.status == MessageStatus.SENT
-            and item.created_at.date() == datetime.now(UTC).date()
+            and item.sent_at is not None and item.sent_at.date() == datetime.now(UTC).date()
         )
         if sent_today >= self._daily_limit:
             raise OutreachBlocked("Se alcanzó la cuota diaria del tenant y canal")
