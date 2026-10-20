@@ -3,6 +3,7 @@ import unittest
 from machine.bootstrap import build_machine
 from machine.domain.models import TaskRequest, TaskStatus, TenantContext
 from machine.infrastructure.repositories import TenantIsolationViolation
+from machine.security.policy import AuthorizationDenied, CapabilityPolicy
 
 
 class MachineTests(unittest.TestCase):
@@ -33,8 +34,20 @@ class MachineTests(unittest.TestCase):
             self.repository.get("tenant-b", task.id)
 
     def test_budget_policy_rejects_excess(self) -> None:
-        with self.assertRaises(Exception):
+        with self.assertRaises(AuthorizationDenied):
             self.orchestrator.submit(self.context, TaskRequest("health.check", {}, 0.50))
+
+    def test_budget_policy_rejects_non_finite_requests(self) -> None:
+        for budget in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(budget=budget):
+                with self.assertRaises(AuthorizationDenied):
+                    self.orchestrator.submit(self.context, TaskRequest("health.check", {}, budget))
+
+    def test_budget_policy_rejects_non_finite_limits(self) -> None:
+        for limit in (float("nan"), float("inf"), float("-inf"), 0.0, -0.01):
+            with self.subTest(limit=limit):
+                with self.assertRaises(ValueError):
+                    CapabilityPolicy(frozenset({"health.check"}), limit)
 
 
 if __name__ == "__main__":
