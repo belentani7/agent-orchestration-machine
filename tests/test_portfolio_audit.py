@@ -23,6 +23,7 @@ class PortfolioAuditTests(unittest.TestCase):
         with TemporaryDirectory() as folder, \
              patch.object(audit, "OUT", Path(folder)), \
              patch.object(audit, "MAX_CONTENT_CHECKS", 2), \
+             patch.object(audit, "TOKEN", "test-only"), \
              patch.object(audit, "repo_pages", return_value=candidates), \
              patch.object(audit, "inspect", side_effect=fake_inspect), \
              patch.dict(os.environ, {"AUDIT_SCAN_OFFSET": "4"}):
@@ -46,7 +47,7 @@ class PortfolioAuditTests(unittest.TestCase):
     def test_root_listing_is_not_release_approval(self):
         sample = {"name": "example", "full_name": "belentani7/example",
                   "archived": False, "fork": False}
-        with patch.object(audit, "api", return_value=[
+        with patch.object(audit, "TOKEN", "test-only"), patch.object(audit, "api", return_value=[
             {"name": "README.md"}, {"name": "LICENSE"}, {"name": ".gitignore"},
             {"name": "package.json"}, {"name": "src"}]):
             result = audit.inspect(sample, True)
@@ -54,6 +55,31 @@ class PortfolioAuditTests(unittest.TestCase):
         self.assertFalse(result["deployed_verified"])
         self.assertFalse(result["content_verified"])
         self.assertEqual(result["status"], "manual_product_validation_required")
+
+    def test_snapshotted_private_fleet_is_not_live_verification(self):
+        with patch.object(audit, "TOKEN", None), \
+             patch.object(audit, "api", side_effect=AssertionError("offline mode may not call API")):
+            records = audit.repo_pages()
+            self.assertEqual(490, len(records))
+            self.assertEqual(490, len({r["id"] for r in records}))
+            current = next(r for r in records if not r["archived"])
+            result = audit.inspect(current, True)
+            self.assertEqual("unverified_snapshot", result["status"])
+            self.assertEqual("historical_snapshot_only", result["checks"]["content_audit"])
+            self.assertFalse(result["release_authorized"])
+
+    def test_offline_inventory_outputs_490_unverified_entries(self):
+        with TemporaryDirectory() as folder, \
+             patch.object(audit, "OUT", Path(folder)), \
+             patch.object(audit, "TOKEN", None), \
+             patch.object(audit, "SCOPE", "historical_snapshot_unverified"), \
+             patch.object(audit, "api", side_effect=AssertionError("No HTTP API permitted")):
+            self.assertEqual(0, audit.main())
+            data = json.loads((Path(folder) / "inventory.json").read_text())
+            self.assertEqual(490, data["total_visible"])
+            self.assertEqual(0, data["contents_scanned"])
+            self.assertFalse(data["live_authenticated"])
+            self.assertTrue(all(not r["release_authorized"] for r in data["repositories"]))
 
 if __name__ == "__main__":
     unittest.main()
