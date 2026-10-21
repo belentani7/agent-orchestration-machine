@@ -46,3 +46,17 @@ La estructura permite evolucionar por dos rutas, sin modificar el dominio: una *
 ## Extensión comercial controlada
 
 El repositorio incorpora una extensión comercial en `machine.commercial`: acepta contactos con procedencia y base de contacto registradas, suprime de inmediato a quien solicite baja, requiere aprobar propuestas antes de programarlas, limita envíos por día y entrega mediante un adaptador de ensayo o SMTP configurado por secretos de entorno. El detalle de diseño y activación está en [`docs/COMMERCIAL_OPERATING_SYSTEM.md`](docs/COMMERCIAL_OPERATING_SYSTEM.md).
+
+## Motor Python persistente de Release Factory
+
+El módulo `machine.factory_engine` añade un **motor real de trabajo persistente**,
+separado del backend LLM y de la consola: SQLite WAL, identificación por el ID
+inmutable de GitHub, importación idempotente, exclusión de archivos, leasing atómico
+con tokens anti-worker obsoleto, reintentos limitados y eventos de auditoría.
+Puede consultar el estado superficial de los repositorios en GitHub **solo con
+un token de lectura**. No ejecuta código externo ni concede autorización de publicación.
+
+Ejemplo: `PYTHONPATH=src python3 -m machine.factory_engine --db /ruta/privada/factory.db seed data/portfolio-repositories-2026-10-21.json`.
+Consulta [la guía de operación](docs/FACTORY_ENGINE.md) antes de ejecutar
+comprobaciones autenticadas. La PR de la consola privada y las PR de workers Linux
+siguen siendo independientes; no activamos un servidor ni un despliegue público.
