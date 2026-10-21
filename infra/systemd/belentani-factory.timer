@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Belentani Factory inventory every 4 hours
+
+[Timer]
+OnCalendar=*-*-* 00,04,08,12,16,20:23:00
+Persistent=true
+AccuracySec=5min
+Unit=belentani-factory.service
+
+[Install]
+WantedBy=timers.target
