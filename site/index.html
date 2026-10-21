@@ -38,7 +38,7 @@
       </section>
       <section class="metrics" aria-label="Métricas del inventario">
         <div class="metric"><span class="micro">TOTAL OBSERVADO</span><strong id="metric-total">—</strong><span class="metric-desc">repositorios</span></div>
-        <div class="metric"><span class="micro">EN ACTIVIDAD</span><strong id="metric-active">—</strong><span class="metric-desc">no archivados</span></div>
+        <div class="metric"><span class="micro">NO ARCHIVADOS</span><strong id="metric-active">—</strong><span class="metric-desc">no archivados</span></div>
         <div class="metric"><span class="micro">HISTÓRICO</span><strong id="metric-archived">—</strong><span class="metric-desc">archivados</span></div>
         <div class="metric"><span class="micro">CÓDIGO INSPECCIONADO</span><strong id="metric-checked">—</strong><span class="metric-desc">no equivale a completo</span></div>
         <div class="metric metric-emphasis"><span class="micro">RELEASE CERTIFICADO AQUÍ</span><strong id="metric-ready">—</strong><span class="metric-desc">requiere pruebas externas</span></div>
@@ -46,7 +46,7 @@
       <section id="catalog" class="workgrid" aria-labelledby="catalog-title">
         <div class="catalog">
           <div class="sectionhead"><div><span class="overline">02 / EXISTING REPOSITORIES</span><h2 id="catalog-title">La cartera <i>real.</i></h2></div><p id="results-summary">Importa un archivo para comenzar.</p></div>
-          <form class="filters" role="search" onsubmit="return false;">
+          <form class="filters" role="search">
             <label class="searchwrap" for="search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar repositorios</span><input id="search" type="search" placeholder="Buscar por nombre..." disabled autocomplete="off"></label>
             <label class="sr-only" for="state">Estado</label><select id="state" disabled><option value="all">Todos los estados</option><option value="active">Activos</option><option value="archived">Archivados</option></select>
             <label class="sr-only" for="category">Categoría orientativa</label><select id="category" disabled><option value="all">Todas las categorías</option><option value="education">Educación</option><option value="music_art">Arte y música</option><option value="ai_tools">IA y herramientas</option><option value="unclassified">Sin clasificar</option></select>
