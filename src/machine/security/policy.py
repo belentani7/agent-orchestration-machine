@@ -19,9 +19,18 @@ class CapabilityPolicy:
         if not isfinite(self.max_task_budget_usd) or self.max_task_budget_usd <= 0:
             raise ValueError("El presupuesto máximo debe ser un valor finito y positivo")
 
-    def assert_capability_allowed(self, context: TenantContext, capability: str) -> None:
-        if not context.tenant_id.strip() or not context.actor_id.strip():
+    def assert_context_valid(self, context: TenantContext) -> None:
+        """Reject unauthenticated or malformed principals before storing tasks."""
+        if (
+            not isinstance(context.tenant_id, str)
+            or not context.tenant_id.strip()
+            or not isinstance(context.actor_id, str)
+            or not context.actor_id.strip()
+        ):
             raise AuthorizationDenied("El contexto de tenant y actor es obligatorio")
+
+    def assert_capability_allowed(self, context: TenantContext, capability: str) -> None:
+        self.assert_context_valid(context)
         if capability not in self.allowed_capabilities:
             raise AuthorizationDenied(f"Capacidad denegada por política: {capability}")
 
