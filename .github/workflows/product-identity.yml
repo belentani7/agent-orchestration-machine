@@ -1,0 +1,61 @@
+name: Canonical product identity
+on:
+  pull_request:
+    paths:
+      - "scripts/product-identity.mjs"
+      - "scripts/check-product-identity.mjs"
+      - "scripts/scan-canonical-portfolio.mjs"
+      - "tests/product-identity.test.mjs"
+      - "tests/scan-canonical-portfolio.test.mjs"
+      - ".github/workflows/product-identity.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canonical-product-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Verify portfolio integrity contracts
+        run: node --test tests/product-identity.test.mjs tests/scan-canonical-portfolio.test.mjs
+      - name: Reject generic scaffold in this Python machine
+        run: node scripts/check-product-identity.mjs belentani7/agent-orchestration-machine .
+
+  live-canonical-scan:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Read-only canonical repository scan
+        env:
+          PORTFOLIO_AUDIT_TOKEN: ${{ secrets.PORTFOLIO_AUDIT_TOKEN }}
+          PRODUCT_IDENTITY_OUTPUT: artifacts/portfolio/product-identity.json
+        run: node scripts/scan-canonical-portfolio.mjs
+      - name: Store private evidence (not a public site asset)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-product-identity
+          path: artifacts/portfolio/product-identity.json
+          retention-days: 7
+          if-no-files-found: warn
