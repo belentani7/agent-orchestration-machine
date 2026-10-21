@@ -62,7 +62,8 @@ export async function scanCanonicalPortfolio({token, fetcher = fetch} = {}) {
   return {
     generated_at: generatedAt,
     scope:"authenticated_github_current_checkout",
-    checked:reports.length,
+    checked:reports.filter(r => r.state !== "inspection_unverified").length,
+    attempted:reports.length,
     expected:REPOSITORIES.length,
     status:reports.some(r => r.state === "blocked_identity_regression")
       ? "blocked_regressions_present"
