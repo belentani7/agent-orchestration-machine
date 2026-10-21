@@ -103,9 +103,16 @@ def main():
         print("WARNING: no portfolio PAT; private repositories cannot be inventoried", file=sys.stderr)
     repos = repo_pages()
     results = []
+    # Rotate the scanned batch. GitHub-hosted runs have no durable filesystem,
+    # so default to a deterministic daily rotation; Linux can persist a cursor.
+    total = len(repos)
+    default_offset = dt.date.today().toordinal() * MAX_CONTENT_CHECKS
+    scan_offset = int(os.getenv("AUDIT_SCAN_OFFSET", str(default_offset)))
+    checked = {(scan_offset + j) % total
+               for j in range(min(total, MAX_CONTENT_CHECKS))} if total else set()
     for i, r in enumerate(repos):
         try:
-            results.append(inspect(r, i < MAX_CONTENT_CHECKS))
+            results.append(inspect(r, i in checked))
         except Exception as exc:
             results.append({"name": r.get("name"), "full_name": r.get("full_name"),
                             "status": "inspection_error", "error": str(exc),
@@ -115,7 +122,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     payload = {"generated_at": now, "owner": OWNER, "total_visible": len(results),
-               "contents_scanned": min(MAX_CONTENT_CHECKS, len(results)),
+               "contents_scanned": len(checked), "scan_offset": scan_offset,
                "inventory_scope": "owner repositories visible with supplied GitHub token",
                "policy": "Inventory is evidence, not product or release certification",
                "repositories": results}
@@ -125,7 +132,7 @@ def main():
         groups[item["status"]] = groups.get(item["status"], 0) + 1
     lines = ["# Portfolio release-readiness inventory", "",
              f"Generated (UTC): {now}", f"Visible repositories: **{len(results)}**",
-             f"Root-level inspections: **{min(MAX_CONTENT_CHECKS, len(results))}**",
+             f"Root-level inspection attempts: **{len(checked)}** (offset: {scan_offset})",
              "", "## Audit state", ""]
     lines += [f"- {key}: {value}" for key, value in sorted(groups.items())]
     lines += ["", "## Release policy", "",
