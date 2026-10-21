@@ -1,6 +1,6 @@
-__pycache__/
-*.py[cod]
-.venv/
+node_modules/
+dist/
 .env
-.coverage
-.pytest_cache/
+*.log
+.DS_Store
+.cache/
