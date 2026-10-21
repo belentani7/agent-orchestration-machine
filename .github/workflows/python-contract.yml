@@ -1,0 +1,33 @@
+name: Machine Python contract
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Headless machine tests and distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify Python source and tests
+        run: |
+          python -m compileall -q src tests
+          PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Smoke-test real headless CLI
+        run: PYTHONPATH=src python -m machine --demo
+      - name: Build distributable wheel and source archive
+        run: |
+          python -m pip install --disable-pip-version-check build
+          python -m build
+          test -n "$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -name '*.tar.gz' -print -quit)"
