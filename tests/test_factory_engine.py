@@ -126,5 +126,68 @@ class FactoryEngineTests(unittest.TestCase):
             self.assertEqual(main(["--db",str(self.db),"scan"]),2)
         self.assertEqual(self.store.metrics()["by_status"],{"queued":2})
 
+
+    def test_refresh_cycle_cannot_starve_untouched_projects(self):
+        self.store.import_inventory(inventory(count=4,archived=()))
+        first=self.store.claim(limit=2)
+        for job in first:
+            self.store.finish(job["repo_id"],lease_token=job["lease_token"],
+                              evidence={"mode":"authenticated_read_only"})
+        self.store.db.execute("UPDATE repos SET checked_at=checked_at-? WHERE status='checked'",
+                              (74*3600,))
+        pending=self.store.claim(limit=2,refresh_after_hours=72)
+        self.assertEqual({x["repo_id"] for x in pending},{12,13})
+        for job in pending:
+            self.store.finish(job["repo_id"],lease_token=job["lease_token"],
+                              evidence={"mode":"authenticated_read_only"})
+        refreshed=self.store.claim(limit=2,refresh_after_hours=72)
+        self.assertEqual({x["repo_id"] for x in refreshed},{10,11})
+        self.assertTrue(all(x["attempts"]==1 for x in refreshed),
+                        "a new review cycle resets the per-cycle retry budget")
+
+    def test_import_archive_revokes_live_worker_lease_and_unarchive_requeues(self):
+        self.store.import_inventory(inventory(count=1,archived=()))
+        old=self.store.claim(limit=1)[0]
+        self.store.import_inventory(inventory(count=1,archived=(0,)))
+        self.assertEqual(self.store.metrics()["by_status"],{"archived":1})
+        with self.assertRaises(FactoryError):
+            self.store.finish(old["repo_id"],lease_token=old["lease_token"],evidence={})
+        self.assertEqual(self.store.claim(limit=1),[])
+        self.store.import_inventory(inventory(count=1,archived=()))
+        fresh=self.store.claim(limit=1)[0]
+        self.assertEqual(fresh["attempts"],1)
+        self.assertNotEqual(old["lease_token"],fresh["lease_token"])
+
+    def test_api_archiving_updates_persistent_repo_state(self):
+        self.store.import_inventory(inventory(count=1,archived=()))
+        record=self.store.claim(limit=1)[0]
+        reader=GitHubReader(token="not-a-real-token")
+        with patch.object(reader,"get",return_value={
+            "id":record["repo_id"],"full_name":record["full_name"],"archived":True
+        }):
+            result=reader.inspect(record)
+        self.store.finish(record["repo_id"],lease_token=record["lease_token"],evidence=result)
+        self.assertEqual(self.store.metrics()["by_status"],{"archived":1})
+        self.assertEqual(self.store.claim(limit=1),[])
+        self.assertFalse(result["publishable"])
+
+    def test_export_rejects_symlink_before_resolving_target(self):
+        destination=Path(self.temp.name)/"sensitive.txt"
+        destination.write_text("keep me unchanged",encoding="utf8")
+        link=Path(self.temp.name)/"export.json"
+        try:
+            link.symlink_to(destination)
+        except (OSError,NotImplementedError):
+            self.skipTest("Symlinks unavailable on this platform")
+        self.assertEqual(main(["--db",str(self.db),"export","--output",str(link)]),2)
+        self.assertEqual(destination.read_text(encoding="utf8"),"keep me unchanged")
+
+    def test_refresh_interval_is_bounded(self):
+        self.store.import_inventory(inventory(count=1,archived=()))
+        with self.assertRaises(FactoryError):
+            self.store.claim(refresh_after_hours=0)
+        with self.assertRaises(FactoryError):
+            self.store.claim(refresh_after_hours=8761)
+
 if __name__=="__main__":
     unittest.main()
