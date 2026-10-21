@@ -46,9 +46,8 @@ class MachineTests(unittest.TestCase):
                     self.orchestrator.submit(
                         principal, TaskRequest("health.check", {}, 0.01)
                     )
-        # No task.created or task.failed events should be emitted for
-        # invalid principals: they never cross the persistence boundary.
-        self.assertEqual([], self.audit.records_for("tenant-a", "missing-id"))
+        # Invalid principals must not create any persisted tasks.
+        self.assertEqual({}, self.repository._tasks)
 
     def test_budget_policy_rejects_excess(self) -> None:
         with self.assertRaises(AuthorizationDenied):
