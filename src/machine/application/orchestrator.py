@@ -27,6 +27,8 @@ class Orchestrator:
         self._worker = worker
 
     def submit(self, context: TenantContext, request: TaskRequest) -> Task:
+        # Fail closed before a task or audit event is created for invalid principals.
+        self._policy.assert_context_valid(context)
         self._policy.assert_budget_allowed(request.max_budget_usd)
         task = Task(
             tenant_id=context.tenant_id,
