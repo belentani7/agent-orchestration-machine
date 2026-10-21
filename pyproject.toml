@@ -11,6 +11,7 @@ dependencies = []
 
 [project.scripts]
 machine = "machine.cli:main"
+belentani-factory = "machine.factory_engine:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
