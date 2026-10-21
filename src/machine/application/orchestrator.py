@@ -6,7 +6,7 @@ from machine.application.ports import AuditSink, EventPublisher, Planner, TaskRe
 from machine.application.worker import Worker
 from machine.domain.models import DomainEvent, Task, TaskRequest, TaskStatus, TenantContext
 from machine.domain.state_machine import transition
-from machine.security.policy import CapabilityPolicy
+from machine.security.policy import AuthorizationDenied, CapabilityPolicy
 
 
 class Orchestrator:
@@ -62,7 +62,7 @@ class Orchestrator:
         except Exception as error:
             if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 transition(task, TaskStatus.FAILED)
-            task.error = str(error)
+            # Exceptions from tools/providers can include credentials, prompts or\n            # external responses. Keep task records safe for downstream readers.\n            task.error = (\n                "Capacidad no autorizada"\n                if isinstance(error, AuthorizationDenied)\n                else "La ejecución no pudo completarse"\n            )
             self._repository.save(task)
             self._emit("task.failed", task, {"error_type": type(error).__name__})
         return task
