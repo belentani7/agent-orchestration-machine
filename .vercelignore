@@ -1,0 +1,4 @@
+# Never publish the operator's private repository catalog.
+data/
+artifacts/
+tests/
