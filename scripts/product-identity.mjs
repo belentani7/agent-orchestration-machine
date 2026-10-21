@@ -28,7 +28,8 @@ const SPEC = {
   },
   "lingua-aberta": {
     kind: "monorepo", roots: ["client", "server", "shared"],
-    markers: ["server", "db"], packages: "required",
+    // This campus release is local-first; check/build are its actual root scripts.
+    markers: ["check"], packages: "required",
   },
   "open-school": {
     kind: "educational-vite", roots: ["client", "backend"],
@@ -107,7 +108,8 @@ export function inspectProductIdentity({fullName, rootNames, packageJson} = {}) 
     if (GENERIC_DESCRIPTION.test(desc)) findings.push("generic_template_overwrite");
     // A generic package with only React/Vite, injected into unrelated
     // Java/Python/static products, is especially strong drift evidence.
-    if (GENERIC_NAME.test(pkgName)) findings.push("generic_package_name");
+    // A legacy generic name alone is weak evidence (some real projects kept it).
+    if (GENERIC_NAME.test(pkgName) && GENERIC_DESCRIPTION.test(desc)) findings.push("generic_package_name");
     if (spec.packages === "optional" && /^(java|python|static-music|separate-brand)$/.test(spec.kind)
         && typeof packageJson.scripts?.build === "string"
         && /\btsc\s*&&\s*vite\s+build/.test(packageJson.scripts.build)
