@@ -1,0 +1,36 @@
+name: Portfolio inventory and readiness
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: portfolio-inventory
+  cancel-in-progress: false
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read-only inventory
+        env:
+          PORTFOLIO_OWNER: belentani7
+          PORTFOLIO_AUDIT_TOKEN: ${{ secrets.PORTFOLIO_AUDIT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          MAX_REPOS: "1000"
+          MAX_CONTENT_CHECKS: "120"
+        run: python scripts/portfolio_audit.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portfolio-audit
+          path: artifacts/portfolio/
+          retention-days: 14
+          if-no-files-found: warn
