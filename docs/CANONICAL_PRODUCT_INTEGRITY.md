@@ -72,16 +72,17 @@ prepared, not an operating service**.
    deploy one brand over a similarly named but different product.
 6. Merge and promote only after checks actually pass and a rollback exists.
 
-### Existing recovery PRs
+### Existing recovery PRs — observed merged on 2026-10-22
 
-- `open-school` PR 46: restore original curricula and Vite build.
-- `linguaforge` PR 40: restore its API/Drizzle monorepo build.
-- `NOIACORE` PR 19: restore Maven/Spring Boot and Black Water.
-- `ManosAbiertas` PR 62: restore Next.js and Prisma.
-- `belentani.es` PR 52: restore actual Next.js application.
-- `agent-orchestration-machine` PR 14: remove unrelated generic Vite scaffold.
+- `open-school` PR 46: restore original curricula and Vite build — merged.
+- `linguaforge` PR 40: restore API/Drizzle monorepo build — merged.
+- `NOIACORE` PR 19: restore native Maven/Spring Boot and Black Water — merged.
+- `ManosAbiertas` PR 62: restore Next.js/Prisma — merged.
+- `belentani.es` PR 52: restore Next.js — merged.
+- `agent-orchestration-machine` PR 14: remove unrelated Vite scaffold — merged.
 
-These are **separate reviews**, not an automatic mass merge. The guard
+Merging restoration fixes **does not prove** their full CI or production releases
+succeeded. These are separate brands and architectures. The guard
 must never perform destructive repository operations or auto-release software.
 
 This code only checks deliberately limited metadata. It does not contact
