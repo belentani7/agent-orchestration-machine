@@ -1,88 +1,48 @@
-# agent-orchestration-machine
+# Máquina de Orquestación de Agentes
 
-> Professional project template
+Esta entrega contiene el **núcleo local, ejecutable y sin interfaz web** de una plataforma de orquestación de agentes. El propósito es establecer las fronteras, contratos y controles antes de acoplar una API, una consola administrativa, una base de datos distribuida o proveedores externos.
 
-## 🚀 Quick Start
+> El proyecto no se presenta como una plataforma certificada ni desplegada. Los módulos de seguridad y cumplimiento son controles arquitectónicos iniciales; las certificaciones y garantías operativas requieren un programa formal, infraestructura y auditorías independientes.
 
-### Prerequisites
-- Node.js >= 20.0.0
-- pnpm >= 9.0.0
+## Alcance construido
 
-### Installation
+| Elemento | Estado | Qué hace |
+|---|---:|---|
+| Núcleo de orquestación | Construido | Recibe una tarea, crea un plan, ejecuta pasos y conserva su estado. |
+| Aislamiento lógico por tenant | Construido | Vincula cada tarea, auditoría y repositorio al identificador del tenant. |
+| Máquina de estados | Construido | Impide transiciones no permitidas durante el ciclo de vida de una tarea. |
+| Registro de agentes | Construido | Registra capacidades con permisos explícitos. |
+| Enrutamiento LLM | Construido | Selecciona proveedores elegibles por presupuesto y usa fallback. |
+| Bus de eventos y auditoría | Construido | Publica eventos internos y genera una traza inmutable en memoria. |
+| Adaptadores de prueba | Construido | Incluye proveedor LLM determinista y repositorios en memoria. |
+| Interfaz web / HTTP | Excluida | Se añadirá solo después de aprobar este núcleo. |
+| Infraestructura productiva | Diferida | Las interfaces permiten conectar cola, base de datos, secret manager y observabilidad reales. |
+
+## Ejecución local
+
+El núcleo no depende de servicios externos. Desde la carpeta raíz:
+
 ```bash
-# Clone the repository
-git clone https://github.com/belentani7/agent-orchestration-machine.git
-cd agent-orchestration-machine
-
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
+PYTHONPATH=src python3 -m machine --demo
+PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-## 📦 Available Scripts
+## Principios no negociables
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start development server |
-| `pnpm build` | Build for production |
-| `pnpm preview` | Preview production build |
-| `pnpm lint` | Run ESLint |
-| `pnpm lint:fix` | Fix ESLint errors |
-| `pnpm format` | Format with Prettier |
-| `pnpm format:check` | Check formatting |
-| `pnpm typecheck` | TypeScript type checking |
-| `pnpm test` | Run unit tests |
-| `pnpm test:watch` | Run tests in watch mode |
-| `pnpm test:coverage` | Run tests with coverage |
-| `pnpm test:e2e` | Run E2E tests |
+| Principio | Aplicación en la base |
+|---|---|
+| Denegar por defecto | Las capacidades deben registrarse y autorizarse explícitamente. |
+| Aislamiento primero | `TenantContext` viaja con la tarea y se valida en el repositorio. |
+| Estado verificable | Cada transición se comprueba contra una tabla de transiciones permitidas. |
+| Efectos auditables | Las decisiones de enrutamiento, pasos y resultados generan eventos de auditoría. |
+| Dependencias invertidas | Dominio y aplicación no importan proveedores ni almacenamiento concretos. |
+| Fallo controlado | El router intenta alternativas elegibles; si no existen, falla de forma explícita. |
+| Evolución sin reescritura | Las abstracciones separan el núcleo de futuras colas, bases de datos y APIs. |
 
-## 🏗️ Architecture
+## Próxima decisión de producto
 
-```
-src/
-├── components/     # Reusable UI components
-├── hooks/          # Custom React hooks
-├── pages/          # Page components
-├── services/       # Business logic & API calls
-├── utils/          # Utility functions
-├── styles/         # Global styles & theme
-├── types/          # TypeScript types
-├── test/           # Test utilities & setup
-└── main.tsx        # Application entry point
-```
+La estructura permite evolucionar por dos rutas, sin modificar el dominio: una **ejecución local monoproceso** para validación y pruebas, o una **ejecución distribuida** con cola, persistencia y workers. La elección se debe tomar después de validar los flujos de negocio prioritarios y sus requisitos de latencia, volumen y retención.
 
-## 🧪 Testing
+## Extensión comercial controlada
 
-- **Unit/Integration**: Vitest + React Testing Library
-- **E2E**: Playwright
-- **Coverage**: Target ≥ 80%
-
-## 🔧 Code Quality
-
-- **TypeScript**: Strict mode enabled
-- **Linting**: ESLint + Biome
-- **Formatting**: Prettier
-- **Git Hooks**: Husky + lint-staged
-- **Commits**: Conventional Commits enforced
-
-## 🚢 Deployment
-
-### Staging
-Automatic on push to `main` branch.
-
-### Production
-Manual via GitHub Actions workflow dispatch or tag push.
-
-## 📋 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 🔒 Security
-
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+El repositorio incorpora una extensión comercial en `machine.commercial`: acepta contactos con procedencia y base de contacto registradas, suprime de inmediato a quien solicite baja, requiere aprobar propuestas antes de programarlas, limita envíos por día y entrega mediante un adaptador de ensayo o SMTP configurado por secretos de entorno. El detalle de diseño y activación está en [`docs/COMMERCIAL_OPERATING_SYSTEM.md`](docs/COMMERCIAL_OPERATING_SYSTEM.md).
