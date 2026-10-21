@@ -46,3 +46,8 @@ La estructura permite evolucionar por dos rutas, sin modificar el dominio: una *
 ## Extensión comercial controlada
 
 El repositorio incorpora una extensión comercial en `machine.commercial`: acepta contactos con procedencia y base de contacto registradas, suprime de inmediato a quien solicite baja, requiere aprobar propuestas antes de programarlas, limita envíos por día y entrega mediante un adaptador de ensayo o SMTP configurado por secretos de entorno. El detalle de diseño y activación está en [`docs/COMMERCIAL_OPERATING_SYSTEM.md`](docs/COMMERCIAL_OPERATING_SYSTEM.md).
+
+
+## Motor persistente de cartera (opt-in)
+
+`src/machine/factory_engine.py` añade una cola local SQLite WAL para el inventario aprobado de repositorios. No ejecuta builds ni despliega automáticamente, no genera repositorios y no activa lecturas privadas sin credenciales de solo lectura. Ejecuta `PYTHONPATH=src python3 -m unittest discover -s tests -v` para verificar el núcleo; consulta `docs/FACTORY_ENGINE.md` para configuración del inventario y el CLI `belentani-factory`.
