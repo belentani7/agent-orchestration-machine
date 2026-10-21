@@ -8,7 +8,7 @@ DIR = Path(__file__).resolve().parents[1] / "infra" / "systemd"
 
 def unit(name):
     path = DIR / name
-    p = configparser.ConfigParser(interpolation=None, strict=True)
+    p = configparser.ConfigParser(interpolation=None, strict=False)
     p.optionxform = str
     with path.open(encoding="utf-8") as stream:
         p.read_file(stream)
