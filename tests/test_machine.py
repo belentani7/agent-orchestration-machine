@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from machine.bootstrap import build_machine
 from machine.domain.models import TaskRequest, TaskStatus, TenantContext
@@ -26,7 +27,26 @@ class MachineTests(unittest.TestCase):
     def test_unauthorized_capability_fails_without_execution(self) -> None:
         task = self.orchestrator.submit(self.context, TaskRequest("files.delete", {}, 0.01))
         self.assertEqual(TaskStatus.FAILED, task.status)
-        self.assertIn("Capacidad denegada", task.error)
+        self.assertEqual("Capacidad no autorizada", task.error)
+
+    def test_provider_error_does_not_leak_secrets_in_task_or_audit(self) -> None:
+        secret = "api-key-user-confidential-test"
+        with patch.object(
+            self.orchestrator._worker,
+            "execute",
+            side_effect=RuntimeError("Provider failed. Authorization: Bearer " + secret),
+        ):
+            task = self.orchestrator.submit(
+                self.context,
+                TaskRequest("text.infer", {"prompt": "sensitive curriculum"}, 0.01),
+            )
+        self.assertEqual(TaskStatus.FAILED, task.status)
+        self.assertEqual("La ejecución no pudo completarse", task.error)
+        self.assertNotIn(secret, str(task.snapshot()))
+        events = self.audit.records_for("tenant-a", task.id)
+        self.assertEqual("task.failed", events[-1]["name"])
+        self.assertEqual("RuntimeError", events[-1]["payload"]["error_type"])
+        self.assertNotIn(secret, str(events))
 
     def test_tenant_repository_rejects_cross_tenant_reads(self) -> None:
         task = self.orchestrator.submit(self.context, TaskRequest("health.check", {}, 0.01))
