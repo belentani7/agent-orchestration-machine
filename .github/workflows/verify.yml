@@ -28,3 +28,13 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m machine --health
+      - name: Set up Node for local console tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate private portfolio console
+        run: node --test site/portfolio.test.mjs
+      - name: Check console module syntax
+        run: |
+          node --check site/app.mjs
+          node --check site/portfolio.mjs

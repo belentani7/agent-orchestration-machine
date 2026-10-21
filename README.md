@@ -18,6 +18,29 @@ Esta entrega contiene el **núcleo local, ejecutable y sin interfaz web** de una
 | Interfaz web / HTTP | Excluida | Se añadirá solo después de aprobar este núcleo. |
 | Infraestructura productiva | Diferida | Las interfaces permiten conectar cola, base de datos, secret manager y observabilidad reales. |
 
+## Consola privada de cartera (nueva interfaz local)
+
+La carpeta [`site/`](site/README.md) incorpora una consola visual **local y privada**
+para explorar inventarios JSON reales. No expone los repositorios, no solicita
+credenciales y no equivale a un SaaS publicado ni a un agente que ejecuta código.
+
+En un equipo con Python, ejecuta desde este repositorio:
+
+```bash
+python3 -m http.server 8765 --bind 127.0.0.1 --directory site
+```
+
+Abre `http://127.0.0.1:8765/` e importa manualmente el inventario de
+`data/portfolio-repositories-2026-10-21.json` o el `inventory.json` obtenido
+de una ejecución autenticada. Incluye filtros, búsqueda, métricas, navegación
+accesible, identificación explícita de instantáneas históricas y una política
+de no certificación automática. La consola no almacena datos entre sesiones.
+
+Los controles automáticos de esta interfaz están en
+`site/portfolio.test.mjs` y `tests/test_console_static.py`. Es obligatorio
+verificar pruebas, experiencia en navegador y privacidad antes de considerar
+una distribución externa.
+
 ## Ejecución local
 
 El núcleo no depende de servicios externos. Desde la carpeta raíz:
