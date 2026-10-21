@@ -1,0 +1,11 @@
+# Global owners
+* @belentani7
+
+# Documentation
+/docs/ @belentani7
+
+# CI/CD
+/.github/ @belentani7
+
+# Security
+/SECURITY.md @belentani7
