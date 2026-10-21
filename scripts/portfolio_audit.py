@@ -18,10 +18,12 @@ import urllib.request
 
 API = "https://api.github.com"
 OWNER = os.getenv("PORTFOLIO_OWNER", "belentani7")
-TOKEN = os.getenv("PORTFOLIO_AUDIT_TOKEN") or os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
+TOKEN = os.getenv("PORTFOLIO_AUDIT_TOKEN")
+SNAPSHOT = pathlib.Path(__file__).resolve().parent.parent / "data" / "portfolio-repositories-2026-10-21.json"
+SCOPE = "authenticated_live_github" if TOKEN else "historical_snapshot_unverified"
 OUT = pathlib.Path(os.getenv("AUDIT_OUTPUT", "artifacts/portfolio"))
-MAX_REPOS = min(int(os.getenv("MAX_REPOS", "1000")), 2000)
-MAX_CONTENT_CHECKS = min(int(os.getenv("MAX_CONTENT_CHECKS", "120")), 2000)
+MAX_REPOS = max(1, min(int(os.getenv("MAX_REPOS", "1000")), 2000))
+MAX_CONTENT_CHECKS = max(0, min(int(os.getenv("MAX_CONTENT_CHECKS", "120")), 2000))
 TIMEOUT = 20
 REQUIRED = ("README.md", "LICENSE", ".gitignore")
 CATEGORY_HINTS = {
@@ -48,6 +50,20 @@ def api(path: str):
         raise
 
 def repo_pages():
+    if not TOKEN:
+        # The workflow GITHUB_TOKEN is scoped to this one repository.
+        # The checked-in historical snapshot is private and is never live evidence.
+        snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+        if snapshot.get("total") != len(snapshot.get("repositories", [])):
+            raise RuntimeError("Historical portfolio snapshot count mismatch")
+        return [
+            {
+                **repo, "owner": {"login": OWNER}, "fork": False,
+                "homepage": None, "description": None,
+                "updated_at": None, "pushed_at": None,
+            }
+            for repo in snapshot["repositories"][:MAX_REPOS]
+        ]
     repos = []
     for page in range(1, (MAX_REPOS + 99)//100 + 1):
         endpoint = ("/user/repos?affiliation=owner&visibility=all&sort=updated&per_page=100"
@@ -81,6 +97,10 @@ def inspect(repo, do_contents):
         "release_authorized": False, "deployed_verified": False,
         "purpose_verified": False, "content_verified": False,
     }
+    if not TOKEN:
+        result["checks"]["content_audit"] = "historical_snapshot_only"
+        result["status"] = "archived_in_snapshot" if repo.get("archived") else "unverified_snapshot"
+        return result
     if not do_contents or repo.get("archived"):
         result["checks"]["content_audit"] = "not_scanned"
         return result
@@ -100,16 +120,16 @@ def inspect(repo, do_contents):
 
 def main():
     if not TOKEN:
-        print("WARNING: no portfolio PAT; private repositories cannot be inventoried", file=sys.stderr)
+        print("SNAPSHOT MODE: no PORTFOLIO_AUDIT_TOKEN; no live cross-repo inspection", file=sys.stderr)
     repos = repo_pages()
     results = []
     # Rotate the scanned batch. GitHub-hosted runs have no durable filesystem,
     # so default to a deterministic daily rotation; Linux can persist a cursor.
     total = len(repos)
-    default_offset = dt.date.today().toordinal() * MAX_CONTENT_CHECKS
+    default_offset = int(dt.datetime.now(dt.timezone.utc).timestamp() // (4 * 3600)) * MAX_CONTENT_CHECKS
     scan_offset = int(os.getenv("AUDIT_SCAN_OFFSET", str(default_offset)))
     checked = {(scan_offset + j) % total
-               for j in range(min(total, MAX_CONTENT_CHECKS))} if total else set()
+               for j in range(min(total, MAX_CONTENT_CHECKS))} if total and TOKEN else set()
     for i, r in enumerate(repos):
         try:
             results.append(inspect(r, i in checked))
@@ -123,7 +143,9 @@ def main():
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     payload = {"generated_at": now, "owner": OWNER, "total_visible": len(results),
                "contents_scanned": len(checked), "scan_offset": scan_offset,
-               "inventory_scope": "owner repositories visible with supplied GitHub token",
+               "inventory_scope": SCOPE,
+               "live_authenticated": bool(TOKEN),
+               "expected_snapshot_total": 490,
                "policy": "Inventory is evidence, not product or release certification",
                "repositories": results}
     (OUT / "inventory.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -133,6 +155,7 @@ def main():
     lines = ["# Portfolio release-readiness inventory", "",
              f"Generated (UTC): {now}", f"Visible repositories: **{len(results)}**",
              f"Root-level inspection attempts: **{len(checked)}** (offset: {scan_offset})",
+             f"Scope: **{SCOPE}**. Snapshot rows are NOT live source-code checks.",
              "", "## Audit state", ""]
     lines += [f"- {key}: {value}" for key, value in sorted(groups.items())]
     lines += ["", "## Release policy", "",
