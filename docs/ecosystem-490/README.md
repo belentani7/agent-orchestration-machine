@@ -1,6 +1,6 @@
 # Gobierno del ecosistema de repositorios (baseline inicial)
 
-**Estado:** propuesta versionada en rama; no implica que se hayan modificado los 487/490 repositorios.  
+**Estado:** propuesta versionada en rama; no implica que se hayan modificado los 490 repositorios.  
 **Objetivo:** inventariar, verificar y mejorar cada repositorio con evidencia reproducible, conservando los originales y evitando cambios masivos ciegos.
 
 ## Principios
@@ -14,12 +14,15 @@
 7. **Herramientas centrales:** mantener las herramientas de agentes una vez en el entorno de desarrollo y distribuir configuración/políticas; no copiar sus fuentes completas a cientos de repositorios sin necesidad.
 8. **Cambios aditivos primero:** rama/PR por lote, CI y revisión antes de mergear.
 
-## Estado real de la investigación
+## Estado real de la investigación (22-10-2026)
 
 - La conexión GitHub autenticada identifica al usuario belentani7.
-- El endpoint de listado devolvió una página de hasta 100 repositorios; los intentos de offsets siguientes no devolvieron páginas adicionales. Por tanto, esta conexión no ha verificado todavía los 487/490 completos.
-- Se han leído los README/licencias oficiales de Superpowers, Impeccable, Graphify y CodeGraff. Esto es investigación de sus repositorios, no una clonación local.
-- No se afirma que se haya ejecutado el análisis completo de código, tests, builds, secretos o despliegues de todos los repositorios.
+- La búsqueda paginada de GitHub `user:belentani7`, páginas 1–5 con 100 resultados por página, devolvió **490 repositorios únicos** (490 IDs y 490 nombres distintos).
+- Metadata observada: **489 privados, 1 público, 218 archivados**. El tamaño acumulado reportado por GitHub es 11.074.606 KB (aprox. 10,56 GiB; es tamaño de repositorios reportado, no una medición local de disco).
+- Esto corrige el snapshot anterior de 487 repositorios. El número 490 sí se confirma en el estado actual de la búsqueda; no significa que 490 estén publicados ni listos para publicarse.
+- Se han leído los README y archivos de licencia oficiales de Superpowers, Impeccable, Graphify y CodeGraff. Esto es investigación de los repositorios, no una clonación local.
+- No se afirma que se haya ejecutado el análisis completo de código, tests, builds, secretos o despliegues de los 490 repositorios.
+- La herramienta de listado simple devolvió solo la primera página; la consulta de búsqueda sí permitió recorrer las cinco páginas. Para auditorías futuras, registrar paginación, conteos únicos y fecha del snapshot.
 - Este paquete es el primer cambio de gobierno centralizado. La aplicación repo por repo se hará solo a partir de un inventario exportado y con resultados registrados.
 
 ## Flujo por repositorio
