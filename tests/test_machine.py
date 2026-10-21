@@ -33,6 +33,23 @@ class MachineTests(unittest.TestCase):
         with self.assertRaises(TenantIsolationViolation):
             self.repository.get("tenant-b", task.id)
 
+    def test_invalid_tenant_or_actor_is_rejected_before_persistence(self) -> None:
+        invalid_principals = (
+            TenantContext("", "actor-a"),
+            TenantContext("   ", "actor-a"),
+            TenantContext("tenant-a", ""),
+            TenantContext("tenant-a", "   "),
+        )
+        for principal in invalid_principals:
+            with self.subTest(principal=principal):
+                with self.assertRaises(AuthorizationDenied):
+                    self.orchestrator.submit(
+                        principal, TaskRequest("health.check", {}, 0.01)
+                    )
+        # No task.created or task.failed events should be emitted for
+        # invalid principals: they never cross the persistence boundary.
+        self.assertEqual([], self.audit.records_for("tenant-a", "missing-id"))
+
     def test_budget_policy_rejects_excess(self) -> None:
         with self.assertRaises(AuthorizationDenied):
             self.orchestrator.submit(self.context, TaskRequest("health.check", {}, 0.50))
