@@ -46,3 +46,14 @@ La estructura permite evolucionar por dos rutas, sin modificar el dominio: una *
 ## Extensión comercial controlada
 
 El repositorio incorpora una extensión comercial en `machine.commercial`: acepta contactos con procedencia y base de contacto registradas, suprime de inmediato a quien solicite baja, requiere aprobar propuestas antes de programarlas, limita envíos por día y entrega mediante un adaptador de ensayo o SMTP configurado por secretos de entorno. El detalle de diseño y activación está en [`docs/COMMERCIAL_OPERATING_SYSTEM.md`](docs/COMMERCIAL_OPERATING_SYSTEM.md).
+
+## Linux independiente de GitHub Actions
+
+El directorio [`infra/systemd/`](infra/systemd/README.md) contiene un servicio
+Linux de ejecución acotada y su temporizador, para continuar los inventarios
+privados cuando GitHub-hosted Actions no dispone de runners. El timer ejecuta
+un ciclo de solo lectura cada cuatro horas y conserva el resultado en
+`/var/lib/belentani-factory`. Requiere instalarlo **en un equipo Linux autorizado**,
+por separado; ningún archivo del repositorio lo activa automáticamente.
+No ejecuta modelos ni publica proyectos, y no reemplaza la revisión de
+calidad ni las mejoras de código de cada producto.
