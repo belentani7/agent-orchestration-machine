@@ -43,3 +43,17 @@ test-results/
 # Misc
 *.pem
 .vercel
+
+# Private portfolio worker state, never commit real inventory or leases
+__pycache__/
+*.py[cod]
+.venv/
+.coverage
+.pytest_cache/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-wal
+*.db-shm
+factory-state/
+reports/
