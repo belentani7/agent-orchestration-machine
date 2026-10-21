@@ -1,0 +1,41 @@
+[Unit]
+Description=Belentani Factory - bounded private portfolio inventory
+Documentation=https://github.com/belentani7/agent-orchestration-machine
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/belentani-factory/scripts/portfolio_audit.py
+
+[Service]
+Type=oneshot
+User=belentani-factory
+Group=belentani-factory
+WorkingDirectory=/opt/belentani-factory
+Environment=PYTHONPATH=/opt/belentani-factory/src
+Environment=AUDIT_OUTPUT=/var/lib/belentani-factory/artifacts/portfolio
+Environment=PORTFOLIO_OWNER=belentani7
+Environment=MAX_REPOS=1000
+Environment=MAX_CONTENT_CHECKS=120
+EnvironmentFile=-/etc/belentani-factory/portfolio.env
+ExecStartPre=/usr/bin/python3 -m unittest discover -s tests -v
+ExecStart=/usr/bin/python3 /opt/belentani-factory/scripts/portfolio_audit.py
+TimeoutStartSec=12min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/belentani-factory
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryMax=512M
+CPUQuota=50%
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
