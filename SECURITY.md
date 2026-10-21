@@ -1,13 +1,28 @@
-# Security
+# Security Policy
 
-## Reportar una vulnerabilidad
+## Supported Versions
 
-No abras un issue publico para reportar una vulnerabilidad. Usa el canal privado
-de seguridad de GitHub en la pestana Security de este repositorio, o escribe al
-contacto indicado abajo.
+| Version | Supported |
+|---------|-----------|
+| 0.1.x   | Yes       |
 
-## Buenas practicas
+## Reporting a Vulnerability
 
-- Nunca commitees claves, tokens ni ficheros `.env`.
-- Usa variables de entorno y ejemplos en `.env.example`.
-- Manten las dependencias actualizadas.
+Please report security vulnerabilities by emailing **security@belentani.com** or using GitHub's [Private Vulnerability Reporting](https://github.com/belentani7/agent-orchestration-machine/security/advisories/new).
+
+Do NOT create public issues for security vulnerabilities.
+
+## Response Timeline
+
+- **Acknowledgment**: Within 48 hours
+- **Assessment**: Within 7 days
+- **Fix**: Within 30 days (critical), 90 days (non-critical)
+- **Disclosure**: Coordinated with reporter
+
+## Security Measures
+
+- Dependabot for dependency updates
+- CodeQL for static analysis
+- Secret scanning enabled
+- Signed commits required
+- Minimum 2 reviewers for merges
