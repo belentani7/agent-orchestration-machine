@@ -137,23 +137,33 @@ class FactoryStore:
         stamp = _now()
         with self.transaction():
             for rid, name, private, archived in parsed:
-                old = self.db.execute("SELECT status FROM repos WHERE repo_id=?", (rid,)).fetchone()
-                state = "archived" if archived else "queued"
-                if old is not None and (not archived and old["status"] != "archived" or old["status"] == "leased"):
-                    state = old["status"]
+                old = self.db.execute("SELECT status,archived FROM repos WHERE repo_id=?", (rid,)).fetchone()
+                previous_archived = old is not None and bool(old["archived"])
+                # Archiving invalidates any worker lease immediately. A newly
+                # unarchived project gets a new review cycle, not stale approval.
+                state = ("archived" if archived else
+                         "queued" if old is None or previous_archived else old["status"])
+                reset = old is not None and (archived or previous_archived)
                 self.db.execute("""
                   INSERT INTO repos(repo_id,full_name,private,archived,status,updated_at)
                   VALUES(?,?,?,?,?,?) ON CONFLICT(repo_id) DO UPDATE SET
                     full_name=excluded.full_name,private=excluded.private,
-                    archived=excluded.archived,status=excluded.status
+                    archived=excluded.archived,status=excluded.status,
+                    updated_at=excluded.updated_at
                 """, (rid, name, int(private), int(archived), state, stamp))
+                if reset:
+                    self.db.execute("""UPDATE repos SET attempts=0,lease_until=NULL,
+                        lease_token=NULL,available_at=0,last_error='',evidence_json=NULL,
+                        checked_at=NULL WHERE repo_id=?""", (rid,))
             self.db.execute("INSERT INTO events(repo_id,created_at,kind,payload) VALUES(?,?,?,?)",
                             (parsed[0][0], stamp, "inventory_import", json.dumps({"count":len(parsed)})))
         return {"imported":len(parsed),"archived":sum(r[3] for r in parsed),
                 "active":sum(not r[3] for r in parsed)}
 
-    def claim(self, *, limit: int = 3, lease_seconds: int = 300, max_attempts: int = 3) -> list[dict[str, Any]]:
-        if not 1 <= limit <= 10 or not 30 <= lease_seconds <= 3600 or not 1 <= max_attempts <= 10:
+    def claim(self, *, limit: int = 3, lease_seconds: int = 300, max_attempts: int = 3,
+              refresh_after_hours: int = 72) -> list[dict[str, Any]]:
+        if (not 1 <= limit <= 10 or not 30 <= lease_seconds <= 3600
+                or not 1 <= max_attempts <= 10 or not 1 <= refresh_after_hours <= 8760):
             raise FactoryError("Bounded claim parameters required")
         now = _now()
         with self.transaction():
@@ -167,8 +177,16 @@ class FactoryStore:
                       AND attempts < ?
                     ORDER BY priority DESC,COALESCE(checked_at,0),updated_at,repo_id LIMIT ?""",
                     (now,max_attempts,limit)).fetchall()
+            # Only rescan previously checked records after fresh/failed work
+            # is exhausted. This prevents a small group from starving the fleet.
+            if len(rows) < limit:
+                rows.extend(self.db.execute("""SELECT * FROM repos
+                    WHERE archived=0 AND status='checked' AND checked_at <= ?
+                    ORDER BY checked_at,repo_id LIMIT ?""",
+                    (now-refresh_after_hours*3600,limit-len(rows))).fetchall())
             for row in rows:
-                self.db.execute("""UPDATE repos SET status='leased',attempts=attempts+1,
+                self.db.execute("""UPDATE repos SET status='leased',
+                             attempts=CASE WHEN status='checked' THEN 1 ELSE attempts+1 END,
                              lease_until=?,lease_token=?,updated_at=? WHERE repo_id=?""",
                              (now+lease_seconds,uuid.uuid4().hex,now,row["repo_id"]))
             return [_snapshot(self.db.execute("SELECT * FROM repos WHERE repo_id=?",
@@ -188,14 +206,18 @@ class FactoryStore:
             if evidence is not None:
                 if not isinstance(evidence,dict) or len(json.dumps(evidence)) > 30000:
                     raise FactoryError("Evidence must be a small JSON object")
-                state = "checked" if not row["archived"] else "archived"
+                confirmed_archived = evidence.get("state") == "archived"
+                state = "archived" if row["archived"] or confirmed_archived else "checked"
                 encoded = json.dumps(evidence,ensure_ascii=False,sort_keys=True)
                 self.db.execute("""UPDATE repos SET status=?,evidence_json=?,last_error='',
-                                 checked_at=?,lease_until=NULL,lease_token=NULL,updated_at=?
-                                 WHERE repo_id=?""",(state,encoded,stamp,stamp,repo_id))
+                                 archived=?,checked_at=?,lease_until=NULL,
+                                 lease_token=NULL,updated_at=? WHERE repo_id=?""",
+                                (state,encoded,int(row["archived"] or confirmed_archived),
+                                 stamp,stamp,repo_id))
                 audit = {"result":state,"evidence_mode":evidence.get("mode","unknown")}
             else:
-                state = "retry" if row["attempts"] < max_attempts else "blocked"
+                state = ("archived" if row["archived"] else
+                         "retry" if row["attempts"] < max_attempts else "blocked")
                 message = (error or "unknown_error")[:240]
                 self.db.execute("""UPDATE repos SET status=?,last_error=?,lease_until=NULL,
                                  available_at=?,lease_token=NULL,updated_at=? WHERE repo_id=?""",
@@ -313,10 +335,11 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command=="status":
                 print(json.dumps(store.metrics()))
             elif args.command=="export":
-                output=args.output.expanduser().resolve()
-                output.parent.mkdir(parents=True,exist_ok=True)
-                if output.is_symlink():
+                requested=args.output.expanduser()
+                if requested.is_symlink():
                     raise FactoryError("Refusing symlinked output")
+                output=requested.resolve()
+                output.parent.mkdir(parents=True,exist_ok=True)
                 output.write_text(json.dumps(store.export(include_names=args.include_names),indent=2,
                                              ensure_ascii=False)+"\n",encoding="utf8")
                 if os.name=="posix":
