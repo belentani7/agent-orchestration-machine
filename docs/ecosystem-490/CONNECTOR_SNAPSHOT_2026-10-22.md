@@ -36,12 +36,20 @@ Este documento registra lo que devolvieron las consultas de solo lectura de esta
 
 No se expuso un conector operativo de Google Drive/Gmail ni Linear en el runtime actual. No se atribuyen resultados a esas plataformas. El texto adjunto menciona inventarios y tareas anteriores, pero sus afirmaciones históricas no se tratan como estado vivo hasta volver a comprobarlas.
 
-## Acciones realizadas en GitHub
+## Cambios GitHub en esta sesión
 
-Se abrió una rama aditiva y un PR en `belentani7/agent-orchestration-machine`:
+### Gobierno central
 
+- Repositorio: `belentani7/agent-orchestration-machine`
 - Rama: `feat/ecosystem-490-tooling-governance`
 - PR borrador: https://github.com/belentani7/agent-orchestration-machine/pull/18
 - Estado: abierto, borrador, sin merge.
-- Incluye guía de gobierno, revisión de herramientas/licencias, plantilla VERIFICACION.md, plan de despliegue gradual y generador de scaffolds.
-- No se ha modificado ningún repositorio de producto, visibilidad, licencia, secreto, historial ni deployment.
+- Incluye guía de gobierno, revisión de herramientas/licencias, plantilla VERIFICACION.md, plan de despliegue gradual, exportador de inventario, generador de scaffolds, script de checkout seguro de herramientas y guía local.
+
+### Piloto de verificación en tres repositorios
+
+- Aion: https://github.com/belentani7/aion/pull/8 — baseline marca **NO RELEASE** tal como ya indica el README; pruebas/build/seguridad siguen NOT RUN.
+- Belentani.cv-ai: https://github.com/belentani7/Belentani.cv-ai/pull/77 — documenta drift real: README dice Next.js 15 y package.json declara ^16.3.8; tests/build/seguridad siguen NOT RUN.
+- LumaQuote: https://github.com/belentani7/lumaquote/pull/1 — package.json declara MIT, pero no se encontró un LICENSE raíz en la consulta; tests/build/seguridad siguen NOT RUN.
+
+Los tres PRs de piloto son borradores, de un solo archivo cada uno y sin cambios de código de aplicación. Ninguno está mergeado. No se han cambiado ramas principales, visibilidad, licencias, secretos, historial Git ni deployments.
