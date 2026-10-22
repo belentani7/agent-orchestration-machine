@@ -99,7 +99,7 @@ def main() -> int:
     # Preflight *before any write*: reject collisions and implicit replacement.
     # File names are predictable and an existing VERIFICACION.md may have been
     # manually completed. Silent regeneration must never destroy that work.
-    valid = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\Z")
+    valid = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
     prepared: list[tuple[str, dict[str, Any], str]] = []
     seen: set[str] = set()
     used_folders: dict[str, str] = {}
