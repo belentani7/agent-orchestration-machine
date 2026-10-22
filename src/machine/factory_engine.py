@@ -356,9 +356,22 @@ def main(argv: list[str] | None = None) -> int:
                         evidence=reader.inspect(job)
                         store.finish(job["repo_id"],lease_token=job["lease_token"],evidence=evidence)
                         counters["checked"]+=1
-                    except FactoryError as error:
-                        store.finish(job["repo_id"],lease_token=job["lease_token"],error=str(error))
-                        counters["retry"]+=1
+                    except Exception as error:
+                        # A malformed response, JSON decoder failure or unexpected
+                        # reader exception must never strand the remaining fleet.
+                        # Do not leak exception messages: they can contain URLs,
+                        # private repository metadata or authentication details.
+                        message = str(error) if isinstance(error, FactoryError) else ""
+                        code = (message if re.fullmatch(r"[a-z][a-z0-9_]{0,79}", message)
+                                else "inspection_unexpected_error")
+                        try:
+                            store.finish(job["repo_id"], lease_token=job["lease_token"],
+                                         error=code)
+                            counters["retry"]+=1
+                        except FactoryError:
+                            # A concurrent archive or expired lease invalidates
+                            # this worker; do not overwrite the newer result.
+                            counters["stale"] = counters.get("stale", 0) + 1
                 print(json.dumps(counters))
         return 0
     except (FactoryError,OSError,ValueError,sqlite3.Error) as error:
