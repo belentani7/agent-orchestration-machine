@@ -91,29 +91,55 @@ def main() -> int:
     p.add_argument("inventory", type=Path)
     p.add_argument("--out", type=Path, default=Path("repo-audit"))
     p.add_argument("--limit", type=int, default=0, help="Optional sample limit; 0 means all.")
+    p.add_argument("--overwrite", action="store_true", help="Explicitly allow rewriting existing generated reports; never implicit.")
     args = p.parse_args()
     repos = load_repos(args.inventory)
     if args.limit > 0:
         repos = repos[:args.limit]
-    args.out.mkdir(parents=True, exist_ok=True)
-    date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    manifest = []
-    seen = set()
+    # Preflight *before any write*: reject collisions and implicit replacement.
+    # File names are predictable and an existing VERIFICACION.md may have been
+    # manually completed. Silent regeneration must never destroy that work.
+    valid = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\Z")
+    prepared: list[tuple[str, dict[str, Any], str]] = []
+    seen: set[str] = set()
+    used_folders: dict[str, str] = {}
     for r in repos:
         owner = r.get("owner") or {}
         full_name = r.get("full_name") or r.get("repository_full_name")
         if not full_name and isinstance(owner, dict) and r.get("name"):
             full_name = f"{owner.get('login', 'unknown')}/{r['name']}"
         full_name = str(full_name or r.get("name") or "unknown/unknown")
-        if full_name in seen:
+        if not valid.fullmatch(full_name):
+            raise ValueError(f"Invalid GitHub repository identifier: {full_name!r}")
+        if full_name.casefold() in seen:
             continue
-        seen.add(full_name)
+        seen.add(full_name.casefold())
+        folder_name = slug(full_name)
+        previous = used_folders.setdefault(folder_name.casefold(), full_name)
+        if previous != full_name:
+            raise ValueError(f"Report path collision: {previous} and {full_name}")
+        prepared.append((full_name, r, folder_name))
+    if not args.overwrite:
+        existing = [str(args.out / folder_name / "VERIFICACION.md")
+                    for _, _, folder_name in prepared
+                    if (args.out / folder_name / "VERIFICACION.md").exists()]
+        if (args.out / "manifest.json").exists():
+            existing.append(str(args.out / "manifest.json"))
+        if existing:
+            raise FileExistsError(
+                "Existing reports must remain unchanged; choose a new --out "
+                "directory or explicitly pass --overwrite: " + ", ".join(existing[:5]))
+    args.out.mkdir(parents=True, exist_ok=True)
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    manifest = []
+    for full_name, r, folder_name in prepared:
+        # Full names and folder collisions were validated in the read-only preflight.
         url = r.get("html_url") or r.get("display_url") or f"https://github.com/{full_name}"
         visibility = r.get("visibility") or ("private" if r.get("private") else "public" if "private" in r else "unknown")
         archived = r.get("archived", "unknown")
         size = r.get("size", "unknown")
         default_branch = r.get("default_branch") or "unknown"
-        folder = args.out / slug(full_name)
+        folder = args.out / folder_name
         folder.mkdir(parents=True, exist_ok=True)
         safe_url = str(url).replace("|", "%7C")
         content = TEMPLATE.format(full_name=full_name, html_url=safe_url, default_branch=default_branch,
