@@ -127,6 +127,34 @@ class FactoryEngineTests(unittest.TestCase):
         self.assertEqual(self.store.metrics()["by_status"],{"queued":2})
 
 
+    def test_scan_continues_after_unexpected_reader_error_without_leaking_details(self):
+        self.store.import_inventory(inventory(count=3, archived=()))
+        def inspect(record):
+            if record["repo_id"] == 10:
+                raise RuntimeError("secret-token-should-not-appear")
+            return {"mode": "authenticated_read_only",
+                    "state": "requires_product_validation", "publishable": False}
+        with patch.dict("os.environ", {"PORTFOLIO_AUDIT_TOKEN": "synthetic-test-only"}):
+            with patch.object(GitHubReader, "inspect", side_effect=inspect):
+                self.assertEqual(main(["--db", str(self.db), "scan", "--limit", "3"]), 0)
+        states = self.store.metrics()["by_status"]
+        self.assertEqual(states, {"checked": 2, "retry": 1})
+        row = self.store.db.execute(
+            "SELECT last_error FROM repos WHERE repo_id=10").fetchone()
+        self.assertEqual(row["last_error"], "inspection_unexpected_error")
+        self.assertNotIn("secret-token", str(self.store.export(include_names=True)))
+
+    def test_scan_preserves_sanitized_reader_errors(self):
+        self.store.import_inventory(inventory(count=1, archived=()))
+        with patch.dict("os.environ", {"PORTFOLIO_AUDIT_TOKEN": "synthetic-test-only"}):
+            with patch.object(GitHubReader, "inspect",
+                              side_effect=FactoryError("github_network_unavailable")):
+                self.assertEqual(main(["--db", str(self.db), "scan", "--limit", "1"]), 0)
+        row = self.store.db.execute(
+            "SELECT status,last_error FROM repos WHERE repo_id=10").fetchone()
+        self.assertEqual(row["status"], "retry")
+        self.assertEqual(row["last_error"], "github_network_unavailable")
+
     def test_refresh_cycle_cannot_starve_untouched_projects(self):
         self.store.import_inventory(inventory(count=4,archived=()))
         first=self.store.claim(limit=2)
