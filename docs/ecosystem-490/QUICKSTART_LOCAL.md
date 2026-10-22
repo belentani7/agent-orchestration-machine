@@ -36,6 +36,8 @@ python3 scripts/ecosystem_490/generate_verification.py ./github-inventory.json -
 
 Cada carpeta generada incluye VERIFICACION.md y el directorio raíz contiene manifest.json. Los controles quedan en NOT RUN hasta ejecutarlos con evidencia real.
 
+**Protección de trabajos anteriores:** el generador comprueba todos los nombres y posibles colisiones antes de escribir; si la carpeta contiene ya un manifiesto o algún `VERIFICACION.md`, se detiene sin sobrescribirlo. Para repetir una exportación usa una carpeta `--out` nueva. El interruptor `--overwrite` es **explícito** y solo se debe usar cuando quieras sustituir conscientemente las plantillas ya existentes; no lo uses con verificaciones modificadas a mano. Una ejecución sobre el inventario no certifica que los repositorios compilen ni declara nada publicado.
+
 ## 3. Clonar las herramientas para inspección
 
 ```bash
