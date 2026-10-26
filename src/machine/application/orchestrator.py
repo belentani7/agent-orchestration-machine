@@ -62,7 +62,12 @@ class Orchestrator:
         except Exception as error:
             if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 transition(task, TaskStatus.FAILED)
-            # Exceptions from tools/providers can include credentials, prompts or\n            # external responses. Keep task records safe for downstream readers.\n            task.error = (\n                "Capacidad no autorizada"\n                if isinstance(error, AuthorizationDenied)\n                else "La ejecución no pudo completarse"\n            )
+            # Never persist provider or planner exception text: it may contain secrets.
+            task.error = (
+                "Capacidad no autorizada"
+                if isinstance(error, AuthorizationDenied)
+                else "La ejecución no pudo completarse"
+            )
             self._repository.save(task)
             self._emit("task.failed", task, {"error_type": type(error).__name__})
         return task

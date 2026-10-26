@@ -48,6 +48,23 @@ class MachineTests(unittest.TestCase):
         self.assertEqual("RuntimeError", events[-1]["payload"]["error_type"])
         self.assertNotIn(secret, str(events))
 
+    def test_planner_error_does_not_leak_secrets_in_persisted_task(self) -> None:
+        secret = "planner-token-test-only"
+        with patch.object(
+            self.orchestrator._planner,
+            "plan",
+            side_effect=RuntimeError("Plan failed. Bearer " + secret),
+        ):
+            task = self.orchestrator.submit(
+                self.context,
+                TaskRequest("text.infer", {"prompt": "private lesson"}, 0.01),
+            )
+        self.assertEqual(TaskStatus.FAILED, task.status)
+        self.assertEqual("La ejecución no pudo completarse", task.error)
+        self.assertEqual(task.error, self.repository.get("tenant-a", task.id).error)
+        self.assertNotIn(secret, str(task.snapshot()))
+        self.assertNotIn(secret, str(self.audit.records_for("tenant-a", task.id)))
+
     def test_tenant_repository_rejects_cross_tenant_reads(self) -> None:
         task = self.orchestrator.submit(self.context, TaskRequest("health.check", {}, 0.01))
         with self.assertRaises(TenantIsolationViolation):
