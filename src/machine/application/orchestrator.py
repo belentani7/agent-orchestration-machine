@@ -6,7 +6,7 @@ from machine.application.ports import AuditSink, EventPublisher, Planner, TaskRe
 from machine.application.worker import Worker
 from machine.domain.models import DomainEvent, Task, TaskRequest, TaskStatus, TenantContext
 from machine.domain.state_machine import transition
-from machine.security.policy import CapabilityPolicy
+from machine.security.policy import AuthorizationDenied, CapabilityPolicy
 
 
 class Orchestrator:
@@ -27,6 +27,8 @@ class Orchestrator:
         self._worker = worker
 
     def submit(self, context: TenantContext, request: TaskRequest) -> Task:
+        # Fail closed before a task or audit event is created for invalid principals.
+        self._policy.assert_context_valid(context)
         self._policy.assert_budget_allowed(request.max_budget_usd)
         task = Task(
             tenant_id=context.tenant_id,
@@ -60,7 +62,12 @@ class Orchestrator:
         except Exception as error:
             if task.status not in {TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
                 transition(task, TaskStatus.FAILED)
-            task.error = str(error)
+            # Never persist provider or planner exception text: it may contain secrets.
+            task.error = (
+                "Capacidad no autorizada"
+                if isinstance(error, AuthorizationDenied)
+                else "La ejecución no pudo completarse"
+            )
             self._repository.save(task)
             self._emit("task.failed", task, {"error_type": type(error).__name__})
         return task
